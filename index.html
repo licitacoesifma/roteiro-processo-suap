@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checklist Dinâmico SUAP — IFMA</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts: Inter — tipografia clean para interface -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- pdf-lib para geração de PDF vetorial com AcroForm interativo e JS embarcado -->
+  <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+
+  <!-- PDF.js para renderização fiel do Preview do PDF em canvas (desktop e mobile) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+          },
+          colors: {
+            ifma: {
+              // Padrão cromático oficial — Manual de Identidade Visual IFMA
+              // Primárias: Verde R50 G160 B65 (#32A041) | Vermelho R200 G25 B30 (#C8191E)
+              green: '#32A041',
+              greenDark: '#1E7A2E',
+              greenDeep: '#156B24',
+              light: '#E8F5E9',
+              red: '#C8191E',
+              redDark: '#A01418',
+              black: '#000000',
+              slate: '#2D2D2D',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    /* Estilo da linha taxada vermelha (cor oficial IFMA) para etapas concluídas */
+    .item-completed-text {
+      text-decoration: line-through;
+      text-decoration-color: #C8191E;
+      text-decoration-thickness: 2.5px;
+      color: #64748B;
+      transition: color 0.2s ease;
+    }
+
+    /* Checkbox customizado acessível */
+    .custom-check {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      min-width: 24px;
+      border: 2px solid #94A3B8;
+      border-radius: 6px;
+      background-color: #FFFFFF;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.18s ease;
+    }
+
+    .custom-check:hover {
+      border-color: #C8191E;
+      background-color: #FEF2F2;
+    }
+
+    .custom-check:checked {
+      background-color: #C8191E;
+      border-color: #C8191E;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='white'%3E%3Cpath fill-rule='evenodd' d='M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z' clip-rule='evenodd'/%3E%3C/svg%3E");
+      background-size: 16px 16px;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    /* Estilo de impressão direta */
+    @media print {
+      body {
+        background: #FFFFFF !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .print-sheet {
+        box-shadow: none !important;
+        border: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+  <!-- ===================================================================== -->
+  <!-- BARRA SUPERIOR DE CONTROLE                                            -->
+  <!-- ===================================================================== -->
+  <header class="no-print sticky top-0 z-30 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+    <div class="max-w-6xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3 flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+      <!-- Identificação do Sistema -->
+      <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-ifma-green flex items-center justify-center shadow-sm shrink-0">
+          <svg class="w-4 h-4 sm:w-5 sm:h-5 text-white" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <h1 class="text-sm sm:text-base font-bold text-slate-900 leading-tight truncate">Checklist Dinâmico SUAP</h1>
+          <p class="text-[11px] sm:text-xs text-slate-500 hidden xs:block sm:block">Editor institucional · PDF interativo</p>
+        </div>
+      </div>
+
+      <!-- Ações Principais -->
+      <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <!-- Alternar Modo Edição / Uso -->
+        <button id="btnToggleMode" type="button"
+          class="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <span id="labelMode" class="whitespace-nowrap">Modo Edição</span>
+        </button>
+
+        <!-- Salvar Modelo JSON -->
+        <button id="btnExportJson" type="button" title="Salvar modelo em JSON"
+          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          <span class="hidden md:inline">Salvar JSON</span>
+        </button>
+
+        <!-- Importar Modelo JSON -->
+        <label for="inputImportJson" title="Importar modelo JSON"
+          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition cursor-pointer">
+          <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+          </svg>
+          <span class="hidden md:inline">Importar</span>
+          <input id="inputImportJson" type="file" accept=".json" class="hidden" />
+        </label>
+
+        <!-- Restaurar Padrão -->
+        <button id="btnResetDefault" type="button" title="Restaurar modelo padrão Porto Franco"
+          class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium bg-white text-slate-700 border border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          <span class="hidden sm:inline">Padrão</span>
+        </button>
+
+        <!-- PREVIEW DO PDF NA TELA -->
+        <button id="btnPreviewPdf" type="button" title="Visualizar como o PDF está ficando"
+          class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-ifma-greenDark bg-ifma-light border border-ifma-green/30 hover:bg-ifma-green/10 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+          <span>Preview PDF</span>
+        </button>
+
+        <!-- CTA PRINCIPAL: GERAR PDF DINÂMICO -->
+        <button id="btnGeneratePdf" type="button"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-white bg-ifma-green hover:bg-ifma-greenDark shadow-md shadow-green-900/20 transition cursor-pointer">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <span>Gerar PDF Dinâmico</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- PAINEL DE PROGRESSO E DICA RÁPIDA                                     -->
+  <!-- ===================================================================== -->
+  <div class="no-print max-w-4xl w-full mx-auto px-4 pt-5">
+    <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex-1">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Progresso do Checklist</span>
+          <span id="progressText" class="text-xs font-bold text-ifma-greenDark">0 de 0 concluídos (0%)</span>
+        </div>
+        <div class="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+          <div id="progressBar" class="h-full bg-gradient-to-r from-ifma-greenDeep to-ifma-green rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 text-xs text-slate-600 bg-red-50/70 border border-ifma-red/20 px-3 py-2 rounded-xl">
+        <span class="w-2.5 h-2.5 rounded-full bg-ifma-red shrink-0"></span>
+        <span>Marque qualquer etapa para aplicar a <strong class="text-ifma-red">linha taxada vermelha</strong> (ativa também no PDF).</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- FOLHA INSTITUCIONAL A4 (VISUALIZAÇÃO E EDIÇÃO DIRETA)                 -->
+  <!-- ===================================================================== -->
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-6">
+    <article id="documentSheet" class="print-sheet bg-white rounded-2xl shadow-xl border border-slate-200/90 overflow-hidden">
+
+      <!-- 1. CABEÇALHO INSTITUCIONAL IFMA (cores e símbolo oficiais) -->
+      <div class="bg-ifma-greenDeep text-white px-4 sm:px-8 py-5 sm:py-6 relative overflow-hidden">
+        <!-- Faixa vermelha lateral (elemento de identidade) -->
+        <div class="absolute left-0 top-0 bottom-0 w-1.5 bg-ifma-red"></div>
+        <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-4 sm:gap-5 pl-1">
+          <!-- Logo Vetorial IFMA oficial + Nome -->
+          <div class="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div class="bg-white p-2 rounded-lg shadow-md shrink-0">
+              <img src="data:image/png;base64,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" alt="Instituto Federal do Maranhão" class="h-11 sm:h-12 w-auto" style="image-rendering: -webkit-optimize-contrast;" />
+            </div>
+            <div class="leading-tight min-w-0 flex flex-col justify-center">
+              <input id="fieldCampus" type="text"
+                class="editable-header bg-white/10 hover:bg-white/20 focus:bg-white/25 text-white text-xs sm:text-sm font-semibold px-2.5 py-1 rounded outline-none w-full max-w-[14rem] transition"
+                aria-label="Campus" placeholder="Campus..." />
+            </div>
+          </div>
+
+          <!-- Setor / Equipe -->
+          <div class="sm:text-right flex flex-col sm:items-end gap-1 min-w-0 w-full sm:w-auto">
+            <input id="fieldTeam" type="text"
+              class="editable-header bg-white/10 hover:bg-white/20 focus:bg-white/25 text-white text-xs sm:text-sm font-extrabold uppercase tracking-wider px-2.5 py-1 rounded outline-none sm:text-right w-full sm:w-64 max-w-full transition"
+              aria-label="Equipe" />
+            <input id="fieldDirectorate" type="text"
+              class="editable-header bg-white/10 hover:bg-white/20 focus:bg-white/25 text-white/85 text-xs font-medium px-2.5 py-0.5 rounded outline-none sm:text-right w-full sm:w-72 max-w-full transition"
+              aria-label="Diretoria" />
+          </div>
+        </div>
+
+        <!-- Título Principal do Checklist -->
+        <div class="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-white/20 pl-1">
+          <input id="fieldTitle" type="text"
+            class="editable-header w-full bg-white/10 hover:bg-white/20 focus:bg-white/25 text-white text-lg sm:text-2xl font-extrabold tracking-tight px-2.5 py-1 rounded-lg outline-none transition"
+            aria-label="Título do Checklist" />
+          <input id="fieldSubtitle" type="text"
+            class="editable-header w-full mt-1 bg-white/10 hover:bg-white/20 focus:bg-white/25 text-white/85 text-xs sm:text-sm font-medium px-2.5 py-0.5 rounded outline-none transition"
+            aria-label="Subtítulo" />
+        </div>
+      </div>
+
+      <!-- 2. METADADOS DO PROCESSO SUAP -->
+      <div class="px-4 sm:px-8 py-4 sm:py-5 bg-slate-50 border-b border-slate-200">
+        <!-- Processo + Requisitante lado a lado; Objeto em linha completa para não cortar texto -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="bg-white rounded-xl border border-slate-200/90 p-3 shadow-xs">
+            <label for="fieldProcess" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Processo SUAP N°</label>
+            <input id="fieldProcess" type="text"
+              class="editable-input w-full text-sm font-bold text-slate-900 bg-transparent outline-none focus:ring-2 focus:ring-ifma-green/30 rounded px-1 -mx-1" />
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200/90 p-3 shadow-xs">
+            <label for="fieldRequester" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Requisitante</label>
+            <input id="fieldRequester" type="text"
+              class="editable-input w-full text-sm font-bold text-slate-900 bg-transparent outline-none focus:ring-2 focus:ring-ifma-green/30 rounded px-1 -mx-1" />
+          </div>
+          <div class="bg-white rounded-xl border border-slate-200/90 p-3 shadow-xs sm:col-span-2">
+            <label for="fieldObject" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Objeto</label>
+            <textarea id="fieldObject" rows="2"
+              class="editable-input w-full text-sm font-bold text-slate-900 bg-transparent outline-none focus:ring-2 focus:ring-ifma-green/30 rounded px-1 -mx-1 resize-y min-h-[2.5rem] leading-snug"></textarea>
+          </div>
+        </div>
+
+        <!-- Caixa "Como usar" -->
+        <div class="mt-4 bg-ifma-light/90 border border-ifma-green/25 rounded-xl p-3.5 flex items-start gap-3">
+          <div class="w-6 h-6 rounded-lg bg-ifma-green/15 text-ifma-greenDark flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <span class="text-xs font-bold text-ifma-greenDeep uppercase tracking-wide">Como usar:</span>
+            <textarea id="fieldInstructions" rows="2"
+              class="editable-input w-full mt-0.5 text-xs sm:text-sm text-slate-700 bg-transparent outline-none resize-none leading-relaxed focus:bg-white/70 rounded p-1 -m-1"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. CONTAINER DINÂMICO DE ETAPAS E ITENS -->
+      <div class="px-3 sm:px-8 py-4 sm:py-6">
+        <div id="stagesContainer" class="space-y-4 sm:space-y-5"></div>
+
+        <!-- Botão Adicionar Nova Etapa -->
+        <div id="addStageWrapper" class="no-print mt-6">
+          <button id="btnAddStage" type="button"
+            class="w-full py-3.5 px-4 rounded-xl border-2 border-dashed border-ifma-green/40 bg-ifma-light/50 hover:bg-ifma-light hover:border-ifma-green text-ifma-greenDark font-bold text-sm flex items-center justify-center gap-2 transition cursor-pointer">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>Adicionar Nova Etapa</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 4. QUADRO DE SUGESTÃO DE DESPACHO -->
+      <div class="px-3 sm:px-8 pb-5 sm:pb-6">
+        <div class="rounded-2xl border border-slate-200 bg-slate-50/80 overflow-hidden">
+          <div class="px-4 py-3 bg-slate-800 text-white flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+              <svg class="w-4 h-4 text-ifma-green shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <input id="fieldDispatchTitle" type="text"
+                class="editable-header bg-white/10 hover:bg-white/20 focus:bg-white/25 text-white text-xs sm:text-sm font-bold uppercase tracking-wider px-2 py-0.5 rounded outline-none w-full" />
+            </div>
+            <button id="btnCopyDispatch" type="button"
+              class="no-print inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ifma-green hover:bg-ifma-greenDark text-white text-xs font-semibold transition cursor-pointer">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+              <span>Copiar Despacho</span>
+            </button>
+          </div>
+          <div class="p-4">
+            <textarea id="fieldDispatchText" rows="6"
+              class="editable-input w-full text-xs sm:text-sm text-slate-700 leading-relaxed bg-transparent outline-none resize-y focus:bg-white rounded-lg p-2 -m-2 transition"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. RODAPÉ INSTITUCIONAL -->
+      <footer class="px-3 sm:px-8 py-3 sm:py-4 bg-slate-100 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] font-semibold text-slate-500">
+        <input id="fieldFooter" type="text"
+          class="editable-input bg-transparent outline-none uppercase tracking-wider w-full sm:w-3/5 focus:bg-white rounded px-1" />
+        <input id="fieldDocLabel" type="text"
+          class="editable-input bg-transparent outline-none text-slate-400 sm:text-right w-full sm:w-2/5 focus:bg-white rounded px-1 shrink-0" />
+      </footer>
+    </article>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL DE EDIÇÃO DE ITEM                                               -->
+  <!-- ===================================================================== -->
+  <div id="itemModal" class="no-print fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden">
+      <div class="px-5 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <h3 id="modalTitle" class="text-base font-bold text-slate-900">Editar Item</h3>
+        <button id="btnCloseModal" type="button" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <form id="itemForm" class="p-5 space-y-4">
+        <div>
+          <label for="inputItemTitle" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Nome do Documento / Ação *</label>
+          <input id="inputItemTitle" type="text" required placeholder="Ex: Termo de Referência 90/2026 - Corrigido"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none" />
+        </div>
+
+        <div>
+          <label for="inputItemDesc" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Observação / Subtítulo (Opcional)</label>
+          <input id="inputItemDesc" type="text" placeholder="Ex: Usar o texto sugerido no quadro abaixo."
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label for="inputItemActionType" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Tipo de Ação</label>
+            <select id="inputItemActionType"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none">
+              <option value="link">Botão de Link (Drive / Arquivo)</option>
+              <option value="badge">Etiqueta de Destaque (Ex: Último Passo)</option>
+              <option value="none">Nenhum</option>
+            </select>
+          </div>
+          <div>
+            <label for="inputItemActionLabel" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Texto do Botão / Etiqueta</label>
+            <input id="inputItemActionLabel" type="text" placeholder="Ex: Abrir no Drive"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none" />
+          </div>
+        </div>
+
+        <div id="urlFieldGroup">
+          <label for="inputItemUrl" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">URL do Link (Google Drive, SUAP, etc.)</label>
+          <input id="inputItemUrl" type="url" placeholder="https://drive.google.com/..."
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none" />
+        </div>
+
+        <div id="badgeSubGroup" class="hidden">
+          <label for="inputItemBadgeSub" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Subtítulo da Etiqueta</label>
+          <input id="inputItemBadgeSub" type="text" placeholder="Ex: Despacho no SUAP"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none" />
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button id="btnCancelModal" type="button"
+            class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer">
+            Cancelar
+          </button>
+          <button type="submit"
+            class="px-5 py-2 rounded-xl text-sm font-bold text-white bg-ifma-green hover:bg-ifma-greenDark shadow-sm transition cursor-pointer">
+            Salvar Item
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL DE CONFIRMAÇÃO (SUBSTITUI confirm() NATIVO)                     -->
+  <!-- ===================================================================== -->
+  <div id="confirmModal" class="no-print fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-200 p-5">
+      <h3 id="confirmTitle" class="text-base font-bold text-slate-900">Confirmar ação</h3>
+      <p id="confirmMessage" class="mt-2 text-sm text-slate-600"></p>
+      <div class="mt-5 flex items-center justify-end gap-2">
+        <button id="btnConfirmCancel" type="button"
+          class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer">
+          Cancelar
+        </button>
+        <button id="btnConfirmOk" type="button"
+          class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition cursor-pointer">
+          Confirmar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL DE PREVIEW DO PDF NA TELA (RENDERIZAÇÃO EM CANVAS PDF.JS)       -->
+  <!-- ===================================================================== -->
+  <div id="pdfPreviewModal" class="no-print fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/75 backdrop-blur-xs p-2 sm:p-5">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[92vh] border border-slate-200 flex flex-col overflow-hidden">
+      <!-- Cabeçalho do Modal -->
+      <div class="px-4 sm:px-6 py-3.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-xl bg-ifma-light text-ifma-greenDark flex items-center justify-center shrink-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </div>
+          <div>
+            <h3 class="text-sm sm:text-base font-bold text-slate-900 leading-tight">Pré-visualização do PDF Dinâmico</h3>
+            <p id="previewSubtitle" class="text-[11px] sm:text-xs text-slate-500">Confira a diagramação A4. No Adobe Reader ou Foxit: marque o □ e a tarja vermelha risca o item</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <a id="btnOpenPreviewTab" href="#" target="_blank" rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-100 transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+            <span class="hidden sm:inline">Nova Aba</span>
+          </a>
+
+          <button id="btnDownloadFromPreview" type="button"
+            class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-ifma-green hover:bg-ifma-greenDark transition cursor-pointer">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span>Baixar PDF</span>
+          </button>
+
+          <button id="btnClosePreview" type="button" title="Fechar visualização"
+            class="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition cursor-pointer">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Área de Páginas Renderizadas do PDF -->
+      <div id="pdfPreviewScroll" class="flex-1 bg-slate-200/90 overflow-y-auto p-4 sm:p-6 flex flex-col items-center gap-5">
+        <div id="pdfPreviewPages" class="w-full flex flex-col items-center gap-5"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- TOAST DE NOTIFICAÇÃO                                                  -->
+  <!-- ===================================================================== -->
+  <div id="toastContainer" class="no-print fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- ===================================================================== -->
+  <!-- LÓGICA DA APLICAÇÃO E GERADOR DE PDF DINÂMICO                         -->
+  <!-- ===================================================================== -->
+  <script>
+    // Logos oficiais IFMA (extraídas de documento institucional)
+    const LOGO_HEADER_B64 = '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';
+    const LOGO_PDF_B64 = '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';
+    const LOGO_SYMBOL_B64 = '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';
+
+    /**
+     * Modelo padrão pré-carregado com os dados do
+     * Checklist_requisitante_Porto_Franco.pdf
+     */
+    const DEFAULT_DATA = {
+      campus: 'Campus Porto Franco',
+      team: 'EQUIPE REQUISITANTE',
+      directorate: 'Diretoria de Desenvolvimento Educacional - DDE',
+      title: 'CHECKLIST DA EQUIPE REQUISITANTE',
+      subtitle: 'Documentos para anexar no SUAP',
+      processNumber: '23249.045201.2026-76',
+      object: 'Equipamentos audiovisuais TR 90/2026',
+      requester: 'IFMA/PFR/DDE',
+      instructions: 'Marque cada caixa ao concluir a etapa (no PDF gerado, use Adobe Reader ou Foxit para riscar com a tarja vermelha). Anexe no SUAP na ordem e, por último, despache ao DAP.',
+      dispatchTitle: 'SUGESTÃO DE DESPACHO AO DAP',
+      dispatchText: 'O objeto da contratação consiste na aquisição de três equipamentos audiovisuais autônomos e de pronto uso descritas no Termo de Referência 90/2026, destinados a suprir as necessidades de sonorização, captação de voz e projeção de imagens digitais como apoio aos encontros presenciais obrigatórios do Curso Técnico em Informática Subsequente, ofertado na modalidade a distância pelo ProEaD/IFMA nos polos de Porto Franco, Campestre e Governador Edson Lobão. Trata-se de bens comuns, com padrões de desempenho e qualidade objetivamente definidos mediante especificações usuais de mercado (art. 6°, XIII, da Lei nº 14.133/2021), funcionalmente independentes e de pronta entrega. O valor total estimado é de R$ 6.162,58, apurado em observância ao art. 23 da Lei nº 14.133/2021 e à Instrução Normativa SEGES/ME nº 65/2021, conforme o relatório de pesquisa de preços constante nos autos. Portanto, encaminhamos ao setor de Diretor de Administração - DAP, para análise e demais trâmites que se fizerem necessários quanto ao atendimento do pleito.',
+      footer: 'INSTITUTO FEDERAL DE EDUCAÇÃO, CIÊNCIA E TECNOLOGIA DO MARANHÃO',
+      docLabel: 'Documento Dinâmico SUAP',
+      stages: [
+        {
+          id: 'stg_1',
+          title: 'TERMO DE REFERÊNCIA',
+          items: [
+            {
+              id: 'itm_1',
+              title: 'Termo de Referência 90/2026 - Corrigido',
+              description: '',
+              actionType: 'link',
+              actionLabel: 'Abrir no Drive',
+              url: 'https://drive.google.com',
+              badgeSub: '',
+              done: false
+            }
+          ]
+        },
+        {
+          id: 'stg_2',
+          title: 'ANEXO II DO AVISO DE CONTRATAÇÃO - MODELO DE PROPOSTA',
+          items: [
+            {
+              id: 'itm_2',
+              title: 'ANEXO II DO AVISO DE CONTRATAÇÃO - Modelo de Proposta',
+              description: '',
+              actionType: 'link',
+              actionLabel: 'Abrir no Drive',
+              url: 'https://drive.google.com',
+              badgeSub: '',
+              done: false
+            }
+          ]
+        },
+        {
+          id: 'stg_3',
+          title: 'MINUTA DO AVISO DE CONTRATAÇÃO',
+          items: [
+            {
+              id: 'itm_3',
+              title: 'MINUTA DO AVISO DE CONTRATAÇÃO',
+              description: '',
+              actionType: 'link',
+              actionLabel: 'Abrir no Drive',
+              url: 'https://drive.google.com',
+              badgeSub: '',
+              done: false
+            }
+          ]
+        },
+        {
+          id: 'stg_4',
+          title: 'ENCAMINHAMENTO',
+          items: [
+            {
+              id: 'itm_4',
+              title: 'Despachar o processo para o DAP',
+              description: 'Usar o texto sugerido no quadro abaixo.',
+              actionType: 'badge',
+              actionLabel: 'ÚLTIMO PASSO',
+              url: '',
+              badgeSub: 'Despacho no SUAP',
+              done: false
+            }
+          ]
+        }
+      ]
+    };
+
+    const STORAGE_KEY = 'ifma_checklist_suap_v1';
+
+    // Estado global da aplicação
+    let state = loadState();
+    let isEditMode = true;
+    let editingContext = null; // { stageIndex, itemIndex | null }
+    let confirmCallback = null;
+    let currentPreviewUrl = null;
+    let currentPreviewFilename = 'Checklist_Dinamico_SUAP.pdf';
+
+    /**
+     * Carrega estado salvo no localStorage ou retorna o modelo padrão
+     */
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && Array.isArray(parsed.stages)) {
+            return parsed;
+          }
+        }
+      } catch (err) {
+        console.warn('Falha ao carregar localStorage:', err);
+      }
+      return JSON.parse(JSON.stringify(DEFAULT_DATA));
+    }
+
+    /**
+     * Salva estado atual no localStorage
+     */
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (err) {
+        console.warn('Falha ao salvar localStorage:', err);
+      }
+    }
+
+    /**
+     * Gera identificador único simples
+     */
+    function uid(prefix = 'id') {
+      return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    }
+
+    /**
+     * Exibe notificação toast na tela
+     */
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      const colors = type === 'error'
+        ? 'bg-red-700 text-white border-red-800'
+        : type === 'info'
+          ? 'bg-slate-800 text-white border-slate-900'
+          : 'bg-ifma-green text-white border-ifma-greenDark';
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl shadow-lg border text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all duration-300 translate-y-2 opacity-0 ${colors}`;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-2', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 3400);
+    }
+
+    /**
+     * Modal de confirmação customizado (sem usar confirm() nativo)
+     */
+    function openConfirm(title, message, onConfirm) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMessage').textContent = message;
+      confirmCallback = onConfirm;
+      const modal = document.getElementById('confirmModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeConfirm() {
+      const modal = document.getElementById('confirmModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      confirmCallback = null;
+    }
+
+    /**
+     * Sincroniza os campos de cabeçalho, metadados e despacho com o estado
+     */
+    function bindStaticFields() {
+      const mapping = [
+        ['fieldCampus', 'campus'],
+        ['fieldTeam', 'team'],
+        ['fieldDirectorate', 'directorate'],
+        ['fieldTitle', 'title'],
+        ['fieldSubtitle', 'subtitle'],
+        ['fieldProcess', 'processNumber'],
+        ['fieldObject', 'object'],
+        ['fieldRequester', 'requester'],
+        ['fieldInstructions', 'instructions'],
+        ['fieldDispatchTitle', 'dispatchTitle'],
+        ['fieldDispatchText', 'dispatchText'],
+        ['fieldFooter', 'footer'],
+        ['fieldDocLabel', 'docLabel']
+      ];
+
+      mapping.forEach(([elId, key]) => {
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.value = state[key] || '';
+        el.oninput = (e) => {
+          state[key] = e.target.value;
+          saveState();
+        };
+      });
+    }
+
+    /**
+     * Alterna entre Modo Edição e Modo Uso (Limpo)
+     */
+    function applyEditModeUI() {
+      const btn = document.getElementById('btnToggleMode');
+      const label = document.getElementById('labelMode');
+      const addStageWrapper = document.getElementById('addStageWrapper');
+
+      if (isEditMode) {
+        label.textContent = 'Modo Edição';
+        btn.className = 'inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100';
+        addStageWrapper.classList.remove('hidden');
+      } else {
+        label.textContent = 'Modo Uso';
+        btn.className = 'inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold border transition cursor-pointer bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200';
+        addStageWrapper.classList.add('hidden');
+      }
+
+      document.querySelectorAll('.editable-header, .editable-input').forEach((el) => {
+        el.readOnly = !isEditMode;
+        if (!isEditMode) {
+          el.classList.add('pointer-events-none');
+          if (el.classList.contains('editable-header')) {
+            el.classList.remove('bg-white/10');
+            el.classList.add('bg-transparent');
+          }
+        } else {
+          el.classList.remove('pointer-events-none');
+          if (el.classList.contains('editable-header')) {
+            el.classList.add('bg-white/10');
+            el.classList.remove('bg-transparent');
+          }
+        }
+      });
+
+      renderStages();
+    }
+
+    /**
+     * Atualiza a barra de progresso
+     */
+    function updateProgress() {
+      let total = 0;
+      let done = 0;
+      state.stages.forEach((stg) => {
+        stg.items.forEach((itm) => {
+          total++;
+          if (itm.done) done++;
+        });
+      });
+
+      const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+      document.getElementById('progressBar').style.width = `${pct}%`;
+      document.getElementById('progressText').textContent = `${done} de ${total} concluídos (${pct}%)`;
+    }
+
+    /**
+     * Escape seguro de HTML
+     */
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    /**
+     * Renderiza todas as etapas e itens sequenciais
+     */
+    function renderStages() {
+      const container = document.getElementById('stagesContainer');
+      container.innerHTML = '';
+
+      let globalSeq = 1;
+
+      state.stages.forEach((stage, sIdx) => {
+        const stageCard = document.createElement('section');
+        stageCard.className = 'rounded-2xl border border-slate-200 overflow-hidden bg-white shadow-xs';
+
+        const itemCount = stage.items.length;
+        const countLabel = itemCount === 1 ? '1 item' : `${itemCount} itens`;
+        const allStageDone = itemCount > 0 && stage.items.every((i) => i.done);
+
+        // Cabeçalho da Etapa
+        const header = document.createElement('div');
+        header.className = `px-4 py-3 flex flex-wrap items-center justify-between gap-2 border-b ${
+          allStageDone ? 'bg-red-50/70 border-red-200' : 'bg-slate-50 border-slate-200'
+        }`;
+
+        header.innerHTML = `
+          <div class="flex items-center gap-2.5 flex-1 min-w-[200px]">
+            <span class="px-2.5 py-1 rounded-lg text-[11px] font-extrabold uppercase tracking-wider shrink-0 ${
+              allStageDone ? 'bg-red-600 text-white' : 'bg-ifma-green text-white'
+            }">
+              ETAPA ${sIdx + 1}
+            </span>
+            ${
+              isEditMode
+                ? `<input type="text" value="${escapeHtml(stage.title)}" data-stage-title="${sIdx}"
+                    class="flex-1 bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-xs sm:text-sm font-bold text-slate-800 uppercase tracking-tight focus:border-ifma-green outline-none" />`
+                : `<h2 class="text-xs sm:text-sm font-extrabold uppercase tracking-tight ${
+                    allStageDone ? 'item-completed-text' : 'text-slate-800'
+                  }">${escapeHtml(stage.title)}</h2>`
+            }
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-500">
+              ${countLabel}
+            </span>
+            ${
+              isEditMode
+                ? `
+                  <button type="button" data-move-stage="${sIdx}" data-dir="-1" title="Subir etapa"
+                    class="no-print p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-30 cursor-pointer" ${sIdx === 0 ? 'disabled' : ''}>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" /></svg>
+                  </button>
+                  <button type="button" data-move-stage="${sIdx}" data-dir="1" title="Descer etapa"
+                    class="no-print p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-30 cursor-pointer" ${sIdx === state.stages.length - 1 ? 'disabled' : ''}>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  <button type="button" data-delete-stage="${sIdx}" title="Remover etapa"
+                    class="no-print p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                  </button>
+                `
+                : ''
+            }
+          </div>
+        `;
+
+        stageCard.appendChild(header);
+
+        // Lista de Itens
+        const list = document.createElement('div');
+        list.className = 'divide-y divide-slate-100';
+
+        if (stage.items.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'px-4 py-5 text-center text-xs text-slate-400 italic';
+          empty.textContent = 'Nenhum item nesta etapa. Clique em "Adicionar item nesta etapa" abaixo.';
+          list.appendChild(empty);
+        }
+
+        stage.items.forEach((item, iIdx) => {
+          const seqStr = String(globalSeq).padStart(2, '0');
+          globalSeq++;
+
+          const row = document.createElement('div');
+          row.className = `px-4 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition ${
+            item.done ? 'bg-red-50/40' : 'hover:bg-slate-50/80'
+          }`;
+
+          let actionHtml = '';
+          if (item.actionType === 'link' && item.actionLabel) {
+            const safeUrl = item.url && item.url.trim() ? item.url.trim() : '#';
+            actionHtml = `
+              <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition shrink-0 ${
+                  item.done
+                    ? 'bg-slate-100 text-slate-400 border-slate-200 line-through decoration-red-500'
+                    : 'bg-ifma-light text-ifma-greenDark border-ifma-green/30 hover:bg-ifma-green hover:text-white'
+                }">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                <span>${escapeHtml(item.actionLabel)}</span>
+              </a>
+            `;
+          } else if (item.actionType === 'badge' && item.actionLabel) {
+            actionHtml = `
+              <div class="flex flex-col sm:items-end shrink-0">
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-extrabold uppercase tracking-wider ${
+                  item.done ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-900'
+                }">
+                  <span class="w-2 h-2 rounded-xs ${item.done ? 'bg-red-600' : 'bg-amber-600'}"></span>
+                  ${escapeHtml(item.actionLabel)}
+                </span>
+                ${
+                  item.badgeSub
+                    ? `<span class="text-[11px] font-medium text-slate-500 mt-0.5">${escapeHtml(item.badgeSub)}</span>`
+                    : ''
+                }
+              </div>
+            `;
+          }
+
+          row.innerHTML = `
+            <div class="flex items-start gap-3 flex-1 min-w-0">
+              <input type="checkbox" class="custom-check mt-0.5" data-toggle-item="${sIdx}:${iIdx}" ${item.done ? 'checked' : ''} aria-label="Marcar item ${seqStr} como concluído" />
+              <span class="inline-flex items-center justify-center w-7 h-7 rounded-lg text-xs font-extrabold shrink-0 ${
+                item.done ? 'bg-red-100 text-red-700' : 'bg-slate-100 text-slate-700'
+              }">
+                ${seqStr}
+              </span>
+              <div class="flex-1 min-w-0 pt-0.5">
+                <div class="text-sm font-semibold leading-snug break-words ${
+                  item.done ? 'item-completed-text' : 'text-slate-900'
+                }">
+                  ${escapeHtml(item.title)}
+                </div>
+                ${
+                  item.description
+                    ? `<div class="text-xs mt-0.5 ${item.done ? 'item-completed-text opacity-80' : 'text-slate-500'}">${escapeHtml(item.description)}</div>`
+                    : ''
+                }
+                ${
+                  item.done
+                    ? `<span class="inline-block mt-1 text-[10px] font-bold uppercase tracking-wider text-red-600 bg-red-100/80 px-2 py-0.5 rounded-md">Etapa concluída</span>`
+                    : ''
+                }
+              </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pl-12 sm:pl-0">
+              ${actionHtml}
+              ${
+                isEditMode
+                  ? `
+                    <div class="no-print flex items-center gap-1 border-l border-slate-200 pl-2 ml-1">
+                      <button type="button" data-edit-item="${sIdx}:${iIdx}" title="Editar item"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-ifma-greenDark hover:bg-ifma-light cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      </button>
+                      <button type="button" data-delete-item="${sIdx}:${iIdx}" title="Excluir item"
+                        class="p-1.5 rounded-lg text-slate-400 hover:text-ifma-red hover:bg-red-50 cursor-pointer">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      </button>
+                    </div>
+                  `
+                  : ''
+              }
+            </div>
+          `;
+
+          list.appendChild(row);
+        });
+
+        stageCard.appendChild(list);
+
+        if (isEditMode) {
+          const stageFooter = document.createElement('div');
+          stageFooter.className = 'no-print px-4 py-2.5 bg-slate-50/60 border-t border-slate-100';
+          stageFooter.innerHTML = `
+            <button type="button" data-add-item="${sIdx}"
+              class="inline-flex items-center gap-1.5 text-xs font-bold text-ifma-greenDark hover:text-ifma-greenDeep cursor-pointer py-1 px-2 rounded-lg hover:bg-ifma-light transition">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" /></svg>
+              <span>Adicionar item nesta etapa</span>
+            </button>
+          `;
+          stageCard.appendChild(stageFooter);
+        }
+
+        container.appendChild(stageCard);
+      });
+
+      attachStageListeners();
+      updateProgress();
+    }
+
+    /**
+     * Vincula eventos interativos às etapas e itens
+     */
+    function attachStageListeners() {
+      document.querySelectorAll('[data-stage-title]').forEach((input) => {
+        input.oninput = (e) => {
+          const idx = Number(e.target.dataset.stageTitle);
+          state.stages[idx].title = e.target.value;
+          saveState();
+        };
+      });
+
+      document.querySelectorAll('[data-move-stage]').forEach((btn) => {
+        btn.onclick = () => {
+          const idx = Number(btn.dataset.moveStage);
+          const dir = Number(btn.dataset.dir);
+          const target = idx + dir;
+          if (target < 0 || target >= state.stages.length) return;
+          const temp = state.stages[idx];
+          state.stages[idx] = state.stages[target];
+          state.stages[target] = temp;
+          saveState();
+          renderStages();
+        };
+      });
+
+      document.querySelectorAll('[data-delete-stage]').forEach((btn) => {
+        btn.onclick = () => {
+          const idx = Number(btn.dataset.deleteStage);
+          openConfirm(
+            'Remover Etapa',
+            `Deseja remover a ETAPA ${idx + 1} ("${state.stages[idx].title}") e todos os seus itens?`,
+            () => {
+              state.stages.splice(idx, 1);
+              saveState();
+              renderStages();
+              showToast('Etapa removida.', 'info');
+            }
+          );
+        };
+      });
+
+      document.querySelectorAll('[data-toggle-item]').forEach((chk) => {
+        chk.onchange = () => {
+          const [sIdx, iIdx] = chk.dataset.toggleItem.split(':').map(Number);
+          state.stages[sIdx].items[iIdx].done = chk.checked;
+          saveState();
+          renderStages();
+        };
+      });
+
+      document.querySelectorAll('[data-add-item]').forEach((btn) => {
+        btn.onclick = () => {
+          const sIdx = Number(btn.dataset.addItem);
+          openItemModal(sIdx, null);
+        };
+      });
+
+      document.querySelectorAll('[data-edit-item]').forEach((btn) => {
+        btn.onclick = () => {
+          const [sIdx, iIdx] = btn.dataset.editItem.split(':').map(Number);
+          openItemModal(sIdx, iIdx);
+        };
+      });
+
+      document.querySelectorAll('[data-delete-item]').forEach((btn) => {
+        btn.onclick = () => {
+          const [sIdx, iIdx] = btn.dataset.deleteItem.split(':').map(Number);
+          state.stages[sIdx].items.splice(iIdx, 1);
+          saveState();
+          renderStages();
+          showToast('Item removido.', 'info');
+        };
+      });
+    }
+
+    /**
+     * Modal de criação/edição de item
+     */
+    function openItemModal(stageIndex, itemIndex) {
+      editingContext = { stageIndex, itemIndex };
+      const isNew = itemIndex === null;
+      const item = isNew
+        ? { title: '', description: '', actionType: 'link', actionLabel: 'Abrir no Drive', url: '', badgeSub: '' }
+        : state.stages[stageIndex].items[itemIndex];
+
+      document.getElementById('modalTitle').textContent = isNew ? 'Adicionar Novo Item' : 'Editar Item';
+      document.getElementById('inputItemTitle').value = item.title || '';
+      document.getElementById('inputItemDesc').value = item.description || '';
+      document.getElementById('inputItemActionType').value = item.actionType || 'link';
+      document.getElementById('inputItemActionLabel').value = item.actionLabel || '';
+      document.getElementById('inputItemUrl').value = item.url || '';
+      document.getElementById('inputItemBadgeSub').value = item.badgeSub || '';
+
+      toggleModalActionFields();
+
+      const modal = document.getElementById('itemModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.getElementById('inputItemTitle').focus();
+    }
+
+    function closeItemModal() {
+      const modal = document.getElementById('itemModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      editingContext = null;
+    }
+
+    function toggleModalActionFields() {
+      const type = document.getElementById('inputItemActionType').value;
+      const urlGroup = document.getElementById('urlFieldGroup');
+      const badgeGroup = document.getElementById('badgeSubGroup');
+      const labelInput = document.getElementById('inputItemActionLabel');
+
+      if (type === 'link') {
+        urlGroup.classList.remove('hidden');
+        badgeGroup.classList.add('hidden');
+        if (!labelInput.value) labelInput.placeholder = 'Ex: Abrir no Drive';
+      } else if (type === 'badge') {
+        urlGroup.classList.add('hidden');
+        badgeGroup.classList.remove('hidden');
+        if (!labelInput.value) labelInput.placeholder = 'Ex: ÚLTIMO PASSO';
+      } else {
+        urlGroup.classList.add('hidden');
+        badgeGroup.classList.add('hidden');
+      }
+    }
+
+    /**
+     * Salva item do modal
+     */
+    function saveItemFromModal(e) {
+      e.preventDefault();
+      if (!editingContext) return;
+
+      const { stageIndex, itemIndex } = editingContext;
+      const title = document.getElementById('inputItemTitle').value.trim();
+      if (!title) {
+        showToast('Informe o nome do documento/ação.', 'error');
+        return;
+      }
+
+      const payload = {
+        title,
+        description: document.getElementById('inputItemDesc').value.trim(),
+        actionType: document.getElementById('inputItemActionType').value,
+        actionLabel: document.getElementById('inputItemActionLabel').value.trim(),
+        url: document.getElementById('inputItemUrl').value.trim(),
+        badgeSub: document.getElementById('inputItemBadgeSub').value.trim(),
+        done: false
+      };
+
+      if (itemIndex === null) {
+        payload.id = uid('itm');
+        state.stages[stageIndex].items.push(payload);
+        showToast('Item adicionado.');
+      } else {
+        const existing = state.stages[stageIndex].items[itemIndex];
+        payload.id = existing.id;
+        payload.done = existing.done;
+        state.stages[stageIndex].items[itemIndex] = payload;
+        showToast('Item atualizado.');
+      }
+
+      saveState();
+      closeItemModal();
+      renderStages();
+    }
+
+    // =====================================================================
+    // GERAÇÃO DE PDF DINÂMICO (pdf-lib + AcroForm interativo)
+    // =====================================================================
+
+    const { PDFDocument, rgb, StandardFonts, degrees } = PDFLib;
+
+    /**
+     * Constrói o PDF completo a partir do estado atual
+     * Retorna Uint8Array do PDF
+     */
+    async function buildPdfBytes() {
+      const pdfDoc = await PDFDocument.create();
+      const pageWidth = 595.28;  // A4
+      const pageHeight = 841.89;
+      let page = pdfDoc.addPage([pageWidth, pageHeight]);
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+      const margin = 40;
+      const contentWidth = pageWidth - margin * 2;
+      let y = pageHeight - margin;
+
+      // Cores oficiais IFMA — Manual de Identidade Visual
+      // Verde: R50 G160 B65 (#32A041) | Vermelho: R200 G25 B30 (#C8191E)
+      const green = rgb(50/255, 160/255, 65/255);         // #32A041
+      const darkGreen = rgb(21/255, 107/255, 36/255);     // #156B24
+      const red = rgb(200/255, 25/255, 30/255);           // #C8191E
+      const slate = rgb(0.18, 0.18, 0.18);
+      const lightSlate = rgb(0.42, 0.45, 0.48);
+      const white = rgb(1, 1, 1);
+      const softBg = rgb(0.96, 0.97, 0.96);
+
+      // ---------- Cabeçalho com logo oficial IFMA ----------
+      // Faixa superior branca para a marca oficial
+      const headerBandH = 72;
+      page.drawRectangle({
+        x: 0, y: pageHeight - headerBandH,
+        width: pageWidth, height: headerBandH,
+        color: white
+      });
+      // Faixa vermelha lateral
+      page.drawRectangle({
+        x: 0, y: pageHeight - headerBandH,
+        width: 5, height: headerBandH,
+        color: red
+      });
+
+      // Embed logo oficial
+      let logoImg = null;
+      try {
+        if (typeof LOGO_PDF_B64 === 'string' && LOGO_PDF_B64.length > 100) {
+          const binary = atob(LOGO_PDF_B64);
+          const logoBytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) logoBytes[i] = binary.charCodeAt(i);
+          logoImg = await pdfDoc.embedPng(logoBytes);
+        }
+      } catch (e) {
+        console.warn('Falha ao embutir logo no PDF:', e);
+      }
+
+      if (logoImg) {
+        const logoH = 36;
+        const logoW = (logoImg.width / logoImg.height) * logoH;
+        page.drawImage(logoImg, {
+          x: margin,
+          y: pageHeight - 52,
+          width: logoW,
+          height: logoH
+        });
+      }
+
+      // Campus abaixo da logo
+      page.drawText(state.campus || '', {
+        x: margin, y: pageHeight - 64,
+        size: 8, font, color: lightSlate
+      });
+
+      // Equipe / Diretoria (direita)
+      const team = (state.team || '').toUpperCase();
+      const teamWidth = fontBold.widthOfTextAtSize(team, 9);
+      page.drawText(team, {
+        x: pageWidth - margin - teamWidth, y: pageHeight - 30,
+        size: 9, font: fontBold, color: darkGreen
+      });
+      const dir = state.directorate || '';
+      const dirWidth = font.widthOfTextAtSize(dir, 8);
+      page.drawText(dir, {
+        x: pageWidth - margin - dirWidth, y: pageHeight - 44,
+        size: 8, font, color: lightSlate
+      });
+
+      // Barra de título institucional (verde)
+      const titleBarH = 36;
+      page.drawRectangle({
+        x: 0, y: pageHeight - headerBandH - titleBarH,
+        width: pageWidth, height: titleBarH,
+        color: darkGreen
+      });
+      page.drawRectangle({
+        x: 0, y: pageHeight - headerBandH - titleBarH,
+        width: 5, height: titleBarH,
+        color: red
+      });
+      page.drawText(state.title || 'CHECKLIST', {
+        x: margin, y: pageHeight - headerBandH - 16,
+        size: 12, font: fontBold, color: white
+      });
+      page.drawText(state.subtitle || '', {
+        x: margin, y: pageHeight - headerBandH - 28,
+        size: 8, font, color: rgb(0.75, 0.9, 0.8)
+      });
+
+      y = pageHeight - headerBandH - titleBarH - 14;
+
+      // ---------- Metadados (Processo + Requisitante | Objeto em linha completa) ----------
+      const metaH = 68;
+      page.drawRectangle({
+        x: margin, y: y - metaH,
+        width: contentWidth, height: metaH,
+        color: softBg, borderColor: rgb(0.85, 0.87, 0.9), borderWidth: 0.5
+      });
+
+      const halfW = contentWidth / 2;
+      // Processo
+      page.drawText('PROCESSO SUAP N°', {
+        x: margin + 8, y: y - 14, size: 7, font: fontBold, color: lightSlate
+      });
+      const procVal = (state.processNumber || '—');
+      page.drawText(procVal.length > 40 ? procVal.slice(0, 38) + '…' : procVal, {
+        x: margin + 8, y: y - 28, size: 9, font: fontBold, color: slate
+      });
+      // Requisitante
+      page.drawText('REQUISITANTE', {
+        x: margin + halfW + 8, y: y - 14, size: 7, font: fontBold, color: lightSlate
+      });
+      const reqVal = (state.requester || '—');
+      page.drawText(reqVal.length > 40 ? reqVal.slice(0, 38) + '…' : reqVal, {
+        x: margin + halfW + 8, y: y - 28, size: 9, font: fontBold, color: slate
+      });
+      // Objeto (largura total — não corta)
+      page.drawText('OBJETO', {
+        x: margin + 8, y: y - 44, size: 7, font: fontBold, color: lightSlate
+      });
+      const objVal = (state.object || '—');
+      const objDisplay = objVal.length > 95 ? objVal.slice(0, 93) + '…' : objVal;
+      page.drawText(objDisplay, {
+        x: margin + 8, y: y - 58, size: 9, font: fontBold, color: slate
+      });
+
+      y -= metaH + 12;
+
+      // Instruções
+      if (state.instructions) {
+        page.drawRectangle({
+          x: margin, y: y - 36,
+          width: contentWidth, height: 36,
+          color: rgb(0.925, 0.97, 0.94),
+          borderColor: rgb(0.7, 0.85, 0.75), borderWidth: 0.5
+        });
+        page.drawText('COMO USAR:', {
+          x: margin + 8, y: y - 12, size: 7, font: fontBold, color: green
+        });
+        const instr = state.instructions.length > 110
+          ? state.instructions.slice(0, 108) + '…'
+          : state.instructions;
+        page.drawText(instr, {
+          x: margin + 8, y: y - 26, size: 8, font, color: slate
+        });
+        y -= 48;
+      }
+
+      // ---------- Etapas e Itens (com checkboxes interativos) ----------
+      const form = pdfDoc.getForm();
+      let globalSeq = 1;
+      const interactivePairs = []; // {chk, stk, done}
+
+      function ensureSpace(needed) {
+        if (y - needed < 50) {
+          // Rodapé da página atual
+          page.drawText(state.footer || 'IFMA', {
+            x: margin, y: 22, size: 7, font, color: lightSlate
+          });
+          const midLbl = state.docLabel || 'Documento Dinâmico SUAP';
+          const midLblW = font.widthOfTextAtSize(midLbl, 7);
+          page.drawText(midLbl, {
+            x: pageWidth - margin - midLblW, y: 22, size: 7, font, color: lightSlate
+          });
+          page = pdfDoc.addPage([pageWidth, pageHeight]);
+          y = pageHeight - margin;
+        }
+      }
+
+      state.stages.forEach((stage, sIdx) => {
+        ensureSpace(40);
+
+        // Cabeçalho da etapa
+        page.drawRectangle({
+          x: margin, y: y - 22,
+          width: contentWidth, height: 22,
+          color: green
+        });
+        page.drawText(`ETAPA ${sIdx + 1}`, {
+          x: margin + 8, y: y - 15,
+          size: 8, font: fontBold, color: white
+        });
+        const stTitle = (stage.title || '').toUpperCase();
+        page.drawText(stTitle.length > 55 ? stTitle.slice(0, 53) + '…' : stTitle, {
+          x: margin + 70, y: y - 15,
+          size: 8, font: fontBold, color: white
+        });
+        y -= 28;
+
+        stage.items.forEach((item, iIdx) => {
+          ensureSpace(32);
+          const seq = String(globalSeq).padStart(2, '0');
+          const rowY = y - 8;
+          const checkSize = 14;
+          const checkX = margin + 3;
+          const checkY = rowY - 3;
+          const textX = margin + 42;
+          const titleText = item.title || '';
+          const displayTitle = titleText.length > 70 ? titleText.slice(0, 68) + '\u2026' : titleText;
+          const titleWidth = Math.min(
+            fontBold.widthOfTextAtSize(displayTitle, 9) + 8,
+            contentWidth - 110
+          );
+
+          page.drawText(seq, {
+            x: margin + 22, y: rowY,
+            size: 9, font: fontBold, color: slate
+          });
+          page.drawText(displayTitle, {
+            x: textX, y: rowY,
+            size: 9, font: fontBold, color: slate
+          });
+          if (item.description) {
+            const desc = item.description.length > 80 ? item.description.slice(0, 78) + '\u2026' : item.description;
+            page.drawText(desc, {
+              x: textX, y: rowY - 12,
+              size: 7, font, color: lightSlate
+            });
+          }
+
+          const chkName = 'C' + sIdx + '_' + iIdx;
+          const stkName = 'S' + sIdx + '_' + iIdx;
+
+          // Tarja = retângulo vermelho fino (campo texto readonly, altura 2.5)
+          try {
+            const strike = form.createTextField(stkName);
+            strike.enableReadOnly();
+            strike.setText(' ');
+            strike.addToPage(page, {
+              x: textX,
+              y: rowY + 2,
+              width: Math.max(40, titleWidth),
+              height: 2.5,
+              borderWidth: 0,
+              backgroundColor: red,
+              textColor: red,
+              fontSize: 1
+            });
+          } catch (e) {
+            console.warn('strike', e);
+          }
+
+          // Checkbox + JS
+          try {
+            const checkBox = form.createCheckBox(chkName);
+            checkBox.addToPage(page, {
+              x: checkX,
+              y: checkY,
+              width: checkSize,
+              height: checkSize,
+              borderWidth: 1.25,
+              borderColor: rgb(0.4, 0.45, 0.5),
+              backgroundColor: white,
+              color: red
+            });
+            if (item.done) checkBox.check();
+
+            // Ação local no checkbox
+            try {
+              const js =
+                'var f=this.getField("' + stkName + '");' +
+                'if(f){f.display=(event.target.value=="Off")?display.hidden:display.visible;}';
+              const actionDict = pdfDoc.context.obj({
+                Type: 'Action',
+                S: 'JavaScript',
+                JS: PDFLib.PDFString.of(js)
+              });
+              const actionRef = pdfDoc.context.register(actionDict);
+              const aaDict = pdfDoc.context.obj({ U: actionRef, V: actionRef });
+              checkBox.acroField.getWidgets().forEach(function (w) {
+                w.dict.set(PDFLib.PDFName.of('AA'), aaDict);
+              });
+            } catch (eJs) {}
+
+            interactivePairs.push({ chk: chkName, stk: stkName, done: !!item.done });
+          } catch (eChk) {
+            console.warn('chk', eChk);
+          }
+
+          // Link clicável
+          if (item.actionType === 'link' && (item.actionLabel || item.url)) {
+            const lbl = item.actionLabel || 'Abrir link';
+            const lw = font.widthOfTextAtSize(lbl, 8) + 4;
+            const linkX = pageWidth - margin - lw;
+            page.drawText(lbl, {
+              x: linkX, y: rowY, size: 8, font, color: green
+            });
+            page.drawLine({
+              start: { x: linkX, y: rowY - 1 },
+              end: { x: linkX + lw - 4, y: rowY - 1 },
+              thickness: 0.6, color: green
+            });
+            const url = (item.url || '').trim();
+            if (url && /^https?:\/\//i.test(url)) {
+              try {
+                const linkAnnot = pdfDoc.context.obj({
+                  Type: 'Annot',
+                  Subtype: 'Link',
+                  Rect: [linkX - 2, rowY - 3, linkX + lw, rowY + 10],
+                  Border: [0, 0, 0],
+                  A: {
+                    Type: 'Action',
+                    S: 'URI',
+                    URI: PDFLib.PDFString.of(url)
+                  }
+                });
+                const linkRef = pdfDoc.context.register(linkAnnot);
+                const annotsKey = PDFLib.PDFName.of('Annots');
+                const existing = page.node.lookup(annotsKey);
+                if (existing) existing.push(linkRef);
+                else page.node.set(annotsKey, pdfDoc.context.obj([linkRef]));
+              } catch (eLink) {}
+            }
+          } else if (item.actionType === 'badge' && item.actionLabel) {
+            const badge = item.actionLabel.toUpperCase();
+            const bw = fontBold.widthOfTextAtSize(badge, 7) + 10;
+            page.drawRectangle({
+              x: pageWidth - margin - bw - 4,
+              y: rowY - 4,
+              width: bw, height: 14,
+              color: rgb(1, 0.95, 0.85),
+              borderColor: rgb(0.9, 0.7, 0.3),
+              borderWidth: 0.6
+            });
+            page.drawText(badge, {
+              x: pageWidth - margin - bw + 1,
+              y: rowY,
+              size: 7, font: fontBold,
+              color: rgb(0.55, 0.35, 0.05)
+            });
+          }
+
+          y -= item.description ? 28 : 20;
+          globalSeq++;
+        });
+
+        y -= 8;
+      });
+
+
+      // JS no nível do documento: estado inicial das tarjas + reforço do toggle
+      try {
+        var initLines = [];
+        interactivePairs.forEach(function (p) {
+          if (!p.done) {
+            initLines.push('try{var f=this.getField("' + p.stk + '");if(f)f.display=display.hidden;}catch(e){}');
+          }
+        });
+        // Função global de toggle (backup)
+        initLines.push(
+          'function toggleStrike(chk,stk){try{var c=this.getField(chk);var f=this.getField(stk);if(c&&f){f.display=(c.value=="Off")?display.hidden:display.visible;}}catch(e){}}'
+        );
+        if (initLines.length) {
+          pdfDoc.addJavaScript('IfmaInit', initLines.join('\n'));
+        }
+      } catch (eDoc) {
+        console.warn('doc js', eDoc);
+      }
+
+      // ---------- Quadro de Despacho ----------
+      ensureSpace(110);
+      page.drawRectangle({
+        x: margin, y: y - 100,
+        width: contentWidth, height: 100,
+        color: softBg, borderColor: rgb(0.8, 0.82, 0.85), borderWidth: 0.6
+      });
+      page.drawRectangle({
+        x: margin, y: y - 18,
+        width: contentWidth, height: 18,
+        color: rgb(0.15, 0.18, 0.22)
+      });
+      page.drawText((state.dispatchTitle || 'SUGESTÃO DE DESPACHO').toUpperCase(), {
+        x: margin + 8, y: y - 12,
+        size: 8, font: fontBold, color: white
+      });
+
+      // Texto do despacho (quebrado em linhas)
+      const dispatch = state.dispatchText || '';
+      const maxChars = 95;
+      const lines = [];
+      let remaining = dispatch;
+      while (remaining.length > 0 && lines.length < 8) {
+        if (remaining.length <= maxChars) {
+          lines.push(remaining);
+          break;
+        }
+        let breakAt = remaining.lastIndexOf(' ', maxChars);
+        if (breakAt < 40) breakAt = maxChars;
+        lines.push(remaining.slice(0, breakAt));
+        remaining = remaining.slice(breakAt).trim();
+      }
+      lines.forEach((ln, i) => {
+        page.drawText(ln, {
+          x: margin + 8, y: y - 32 - i * 10,
+          size: 7.5, font, color: slate
+        });
+      });
+
+      y -= 110;
+
+      // Rodapé
+      page.drawText(state.footer || 'INSTITUTO FEDERAL DE EDUCAÇÃO, CIÊNCIA E TECNOLOGIA DO MARANHÃO', {
+        x: margin, y: 22, size: 7, font, color: lightSlate
+      });
+      const docLbl = state.docLabel || 'Documento Dinâmico SUAP';
+      const docLblW = font.widthOfTextAtSize(docLbl, 7);
+      page.drawText(docLbl, {
+        x: pageWidth - margin - docLblW, y: 22, size: 7, font, color: lightSlate
+      });
+
+      // Aparências dos campos + habilita JS no leitor
+      try {
+        form.updateFieldAppearances(font);
+      } catch (_) {}
+      try {
+        // Mantém formulário interativo (não achatar)
+        form.acroForm.dict.set(
+          PDFLib.PDFName.of('NeedAppearances'),
+          pdfDoc.context.obj(true)
+        );
+      } catch (_) {}
+
+      // Importante: NÃO usar form.flatten() — campos devem permanecer editáveis
+      const pdfBytes = await pdfDoc.save({ useObjectStreams: false });
+      return pdfBytes;
+    }
+
+    /**
+     * Gera e faz download do PDF
+     */
+    async function generateAndDownloadPdf() {
+      try {
+        showToast('Gerando PDF interativo…', 'info');
+        const bytes = await buildPdfBytes();
+        const blob = new Blob([bytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Checklist_SUAP_${(state.processNumber || 'sem_processo').replace(/[^\w.-]/g, '_')}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        showToast('PDF gerado e baixado com sucesso!');
+      } catch (err) {
+        console.error(err);
+        showToast('Erro ao gerar PDF: ' + (err.message || err), 'error');
+      }
+    }
+
+    // =====================================================================
+    // PREVIEW DO PDF NA TELA (PDF.js)
+    // =====================================================================
+
+    async function openPdfPreview() {
+      const modal = document.getElementById('pdfPreviewModal');
+      const pagesContainer = document.getElementById('pdfPreviewPages');
+      pagesContainer.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-16 gap-3 text-slate-500">
+          <svg class="w-10 h-10 animate-spin text-ifma-green" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+          <span class="text-sm font-medium">Gerando pré-visualização…</span>
+        </div>
+      `;
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      try {
+        // Configura worker do PDF.js
+        if (window.pdfjsLib) {
+          pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        if (typeof PDFLib === 'undefined') {
+          throw new Error('Biblioteca pdf-lib não carregou. Verifique sua conexão.');
+        }
+        if (typeof pdfjsLib === 'undefined') {
+          throw new Error('Biblioteca PDF.js não carregou. Verifique sua conexão.');
+        }
+
+        const bytes = await buildPdfBytes();
+        const bytesCopy = bytes.slice ? bytes.slice(0) : new Uint8Array(bytes);
+        const blob = new Blob([bytesCopy], { type: 'application/pdf' });
+
+        // Revoga URL anterior se existir
+        if (currentPreviewUrl) {
+          URL.revokeObjectURL(currentPreviewUrl);
+        }
+        currentPreviewUrl = URL.createObjectURL(blob);
+        currentPreviewFilename = `Checklist_SUAP_${(state.processNumber || 'sem_processo').replace(/[^\w.-]/g, '_')}.pdf`;
+
+        // Link "Nova Aba"
+        const openTab = document.getElementById('btnOpenPreviewTab');
+        openTab.href = currentPreviewUrl;
+
+        // Renderiza páginas com PDF.js (cópia do buffer evita erros de transfer)
+        const loadingTask = pdfjsLib.getDocument({ data: bytesCopy });
+        const pdf = await loadingTask.promise;
+        pagesContainer.innerHTML = '';
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const scale = Math.min(1.4, (window.innerWidth - 80) / page.getViewport({ scale: 1 }).width);
+          const viewport = page.getViewport({ scale });
+
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.className = 'shadow-lg rounded-sm bg-white max-w-full';
+          canvas.style.width = Math.min(viewport.width, 780) + 'px';
+
+          const wrapper = document.createElement('div');
+          wrapper.className = 'flex flex-col items-center gap-1';
+          const label = document.createElement('span');
+          label.className = 'text-[11px] font-semibold text-slate-500';
+          label.textContent = `Página ${i} de ${pdf.numPages}`;
+          wrapper.appendChild(label);
+          wrapper.appendChild(canvas);
+          pagesContainer.appendChild(wrapper);
+
+          const ctx = canvas.getContext('2d');
+          await page.render({ canvasContext: ctx, viewport }).promise;
+        }
+
+        document.getElementById('previewSubtitle').textContent =
+          `${pdf.numPages} página(s) • Marque os □ no Adobe Reader/Foxit — a tarja vermelha risca o item na hora`;
+      } catch (err) {
+        console.error(err);
+        pagesContainer.innerHTML = `
+          <div class="text-center py-12 text-red-600">
+            <p class="font-bold">Erro ao gerar pré-visualização</p>
+            <p class="text-sm mt-1">${escapeHtml(err.message || String(err))}</p>
+          </div>
+        `;
+        showToast('Falha no preview: ' + (err.message || err), 'error');
+      }
+    }
+
+    function closePdfPreview() {
+      const modal = document.getElementById('pdfPreviewModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function downloadFromPreview() {
+      if (!currentPreviewUrl) {
+        showToast('Gere o preview primeiro.', 'error');
+        return;
+      }
+      const a = document.createElement('a');
+      a.href = currentPreviewUrl;
+      a.download = currentPreviewFilename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      showToast('Download iniciado.');
+    }
+
+    // =====================================================================
+    // IMPORT / EXPORT JSON + RESET
+    // =====================================================================
+
+    function exportJson() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `checklist_suap_${(state.campus || 'modelo').replace(/\s+/g, '_')}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('Modelo JSON exportado.');
+    }
+
+    function importJson(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (!data || !Array.isArray(data.stages)) {
+            throw new Error('JSON inválido: falta o array "stages".');
+          }
+          state = data;
+          saveState();
+          bindStaticFields();
+          renderStages();
+          showToast('Modelo importado com sucesso!');
+        } catch (err) {
+          showToast('Erro ao importar: ' + err.message, 'error');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function resetToDefault() {
+      openConfirm(
+        'Restaurar modelo padrão',
+        'Isso substituirá o checklist atual pelo modelo de Porto Franco. Continuar?',
+        () => {
+          state = JSON.parse(JSON.stringify(DEFAULT_DATA));
+          saveState();
+          bindStaticFields();
+          renderStages();
+          showToast('Modelo padrão restaurado.', 'info');
+        }
+      );
+    }
+
+    // =====================================================================
+    // INICIALIZAÇÃO E EVENTOS GLOBAIS
+    // =====================================================================
+
+    function init() {
+      bindStaticFields();
+      applyEditModeUI();
+
+      // Toggle modo edição / uso
+      document.getElementById('btnToggleMode').onclick = () => {
+        isEditMode = !isEditMode;
+        applyEditModeUI();
+        showToast(isEditMode ? 'Modo Edição ativado' : 'Modo Uso (limpo) ativado', 'info');
+      };
+
+      // Adicionar etapa
+      document.getElementById('btnAddStage').onclick = () => {
+        state.stages.push({
+          id: uid('stg'),
+          title: 'NOVA ETAPA',
+          items: []
+        });
+        saveState();
+        renderStages();
+        showToast('Etapa adicionada.');
+      };
+
+      // Modal de item
+      document.getElementById('itemForm').onsubmit = saveItemFromModal;
+      document.getElementById('btnCloseModal').onclick = closeItemModal;
+      document.getElementById('btnCancelModal').onclick = closeItemModal;
+      document.getElementById('inputItemActionType').onchange = toggleModalActionFields;
+
+      // Confirmação
+      document.getElementById('btnConfirmCancel').onclick = closeConfirm;
+      document.getElementById('btnConfirmOk').onclick = () => {
+        if (typeof confirmCallback === 'function') confirmCallback();
+        closeConfirm();
+      };
+
+      // JSON
+      document.getElementById('btnExportJson').onclick = exportJson;
+      document.getElementById('inputImportJson').onchange = (e) => {
+        if (e.target.files?.[0]) {
+          importJson(e.target.files[0]);
+          e.target.value = '';
+        }
+      };
+      document.getElementById('btnResetDefault').onclick = resetToDefault;
+
+      // PDF
+      document.getElementById('btnGeneratePdf').onclick = generateAndDownloadPdf;
+      document.getElementById('btnPreviewPdf').onclick = openPdfPreview;
+      document.getElementById('btnClosePreview').onclick = closePdfPreview;
+      document.getElementById('btnDownloadFromPreview').onclick = downloadFromPreview;
+
+      // Copiar despacho
+      document.getElementById('btnCopyDispatch').onclick = async () => {
+        const text = state.dispatchText || '';
+        try {
+          await navigator.clipboard.writeText(text);
+          showToast('Despacho copiado para a área de transferência!');
+        } catch {
+          // Fallback
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+          showToast('Despacho copiado!');
+        }
+      };
+
+      // Fechar modais com Escape
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeItemModal();
+          closeConfirm();
+          closePdfPreview();
+        }
+      });
+
+      // Clique fora do modal de preview fecha
+      document.getElementById('pdfPreviewModal').addEventListener('click', (e) => {
+        if (e.target.id === 'pdfPreviewModal') closePdfPreview();
+      });
+    }
+
+    // Boot
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
