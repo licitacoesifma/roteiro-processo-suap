@@ -1577,24 +1577,37 @@
             const lbl = item.actionLabel || 'Abrir link';
             const lw = font.widthOfTextAtSize(lbl, 8) + 4;
             const iconSize = 9;
-            const iconW = colorDef.warning ? iconSize + 4 : 0;
+            const iconW = iconSize + 4;
             const linkX = pageWidth - margin - lw - iconW;
             const textX = linkX + iconW;
+            const iconBase = rowY - 2;
 
             if (colorDef.warning) {
               // Triângulo de atenção com "!" no centro
-              const triBase = rowY - 2;
               try {
                 page.drawSvgPath(`M${iconSize / 2} 0 L${iconSize} ${iconSize} L0 ${iconSize} Z`, {
                   x: linkX,
-                  y: triBase + iconSize,
+                  y: iconBase + iconSize,
                   color: btnColor
                 });
               } catch (eTri) {}
               page.drawText('!', {
-                x: linkX + iconSize / 2 - 1, y: triBase + 1.5,
+                x: linkX + iconSize / 2 - 1, y: iconBase + 1.5,
                 size: 6, font: fontBold, color: white
               });
+            } else {
+              // Ícone de "abrir link externo" (caixa + seta), apenas com linhas retas
+              try {
+                page.drawSvgPath(
+                  'M1.5 3 L1.5 8 L7 8 L7 4.5 M4 5.5 L8 1.5 M8 1.5 L8 4 M8 1.5 L5.5 1.5',
+                  {
+                    x: linkX,
+                    y: iconBase + iconSize,
+                    borderColor: btnColor,
+                    borderWidth: 0.9
+                  }
+                );
+              } catch (eIcon) {}
             }
 
             page.drawText(lbl, {
