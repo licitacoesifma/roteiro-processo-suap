@@ -257,8 +257,19 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="bg-white rounded-xl border border-slate-200/90 p-3 shadow-xs">
             <label for="fieldProcess" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Processo SUAP N°</label>
-            <input id="fieldProcess" type="text"
-              class="editable-input w-full text-sm font-bold text-slate-900 bg-transparent outline-none focus:ring-2 focus:ring-ifma-green/30 rounded px-1 -mx-1" />
+            <div class="flex items-center gap-1.5">
+              <input id="fieldProcess" type="text"
+                class="editable-input flex-1 min-w-0 text-sm font-bold text-slate-900 bg-transparent outline-none focus:ring-2 focus:ring-ifma-green/30 rounded px-1 -mx-1" />
+              <a id="linkProcessOpen" href="#" target="_blank" rel="noopener noreferrer" title="Abrir processo no SUAP"
+                class="hidden shrink-0 w-6 h-6 rounded-md text-ifma-green hover:bg-ifma-light flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            </div>
+            <label for="fieldProcessLink" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-2 mb-1">Link do processo</label>
+            <input id="fieldProcessLink" type="url" placeholder="https://suap.ifma.edu.br/processo_eletronico/processo/..."
+              class="editable-input w-full text-xs text-slate-700 bg-slate-50 border border-slate-200 outline-none focus:ring-2 focus:ring-ifma-green/30 rounded px-2 py-1" />
           </div>
           <div class="bg-white rounded-xl border border-slate-200/90 p-3 shadow-xs">
             <label for="fieldRequester" class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Requisitante</label>
@@ -506,6 +517,7 @@
       title: 'CHECKLIST DA EQUIPE REQUISITANTE',
       subtitle: 'Documentos para anexar no SUAP',
       processNumber: '23249.045201.2026-76',
+      processLink: '',
       object: 'Equipamentos audiovisuais TR 90/2026',
       requester: 'IFMA/PFR/DDE',
       instructions: 'Marque cada caixa ao concluir a etapa (no PDF gerado, use Adobe Reader ou Foxit para riscar com a tarja vermelha). Anexe no SUAP na ordem e, por último, despache ao DAP.',
@@ -683,6 +695,7 @@
         ['fieldTitle', 'title'],
         ['fieldSubtitle', 'subtitle'],
         ['fieldProcess', 'processNumber'],
+        ['fieldProcessLink', 'processLink'],
         ['fieldObject', 'object'],
         ['fieldRequester', 'requester'],
         ['fieldInstructions', 'instructions'],
@@ -699,8 +712,32 @@
         el.oninput = (e) => {
           state[key] = e.target.value;
           saveState();
+          if (key === 'processLink') updateProcessLinkUI();
         };
       });
+      updateProcessLinkUI();
+    }
+
+    /**
+     * Normaliza o link do processo (aceita sem "https://")
+     */
+    function getProcessLink() {
+      let url = (state.processLink || '').trim();
+      if (!url) return '';
+      if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+      return url;
+    }
+
+    /**
+     * Mostra/oculta o botão de abrir o processo conforme o link preenchido
+     */
+    function updateProcessLinkUI() {
+      const a = document.getElementById('linkProcessOpen');
+      if (!a) return;
+      const url = getProcessLink();
+      a.href = url || '#';
+      a.classList.toggle('hidden', !url);
+      a.classList.toggle('flex', !!url);
     }
 
     /**
@@ -1262,9 +1299,36 @@
         x: margin + 8, y: y - 14, size: 7, font: fontBold, color: lightSlate
       });
       const procVal = (state.processNumber || '—');
-      page.drawText(procVal.length > 40 ? procVal.slice(0, 38) + '…' : procVal, {
-        x: margin + 8, y: y - 28, size: 9, font: fontBold, color: slate
+      const procDisplay = procVal.length > 40 ? procVal.slice(0, 38) + '…' : procVal;
+      const procLink = getProcessLink();
+      const procColor = procLink ? rgb(0.05, 0.35, 0.75) : slate;
+      page.drawText(procDisplay, {
+        x: margin + 8, y: y - 28, size: 9, font: fontBold, color: procColor
       });
+      if (procLink) {
+        const procW = fontBold.widthOfTextAtSize(procDisplay, 9);
+        page.drawLine({
+          start: { x: margin + 8, y: y - 29.5 },
+          end: { x: margin + 8 + procW, y: y - 29.5 },
+          thickness: 0.6, color: procColor
+        });
+        try {
+          const procAnnot = pdfDoc.context.obj({
+            Type: 'Annot',
+            Subtype: 'Link',
+            Rect: [margin + 6, y - 32, margin + 10 + procW, y - 19],
+            Border: [0, 0, 0],
+            A: { Type: 'Action', S: 'URI', URI: PDFLib.PDFString.of(procLink) }
+          });
+          const procRef = pdfDoc.context.register(procAnnot);
+          const annotsKey = PDFLib.PDFName.of('Annots');
+          const existingAnnots = page.node.lookup(annotsKey);
+          if (existingAnnots) existingAnnots.push(procRef);
+          else page.node.set(annotsKey, pdfDoc.context.obj([procRef]));
+        } catch (eProcLink) {
+          console.warn('Falha ao criar link do processo:', eProcLink);
+        }
+      }
       // Requisitante
       page.drawText('REQUISITANTE', {
         x: margin + halfW + 8, y: y - 14, size: 7, font: fontBold, color: lightSlate
@@ -1517,45 +1581,80 @@
       }
 
       // ---------- Quadro de Despacho ----------
-      ensureSpace(110);
-      page.drawRectangle({
-        x: margin, y: y - 100,
-        width: contentWidth, height: 100,
-        color: softBg, borderColor: rgb(0.8, 0.82, 0.85), borderWidth: 0.6
-      });
-      page.drawRectangle({
-        x: margin, y: y - 18,
-        width: contentWidth, height: 18,
-        color: rgb(0.15, 0.18, 0.22)
-      });
-      page.drawText((state.dispatchTitle || 'SUGESTÃO DE DESPACHO').toUpperCase(), {
-        x: margin + 8, y: y - 12,
-        size: 8, font: fontBold, color: white
-      });
-
-      // Texto do despacho (quebrado em linhas)
-      const dispatch = state.dispatchText || '';
-      const maxChars = 95;
-      const lines = [];
-      let remaining = dispatch;
-      while (remaining.length > 0 && lines.length < 8) {
-        if (remaining.length <= maxChars) {
-          lines.push(remaining);
-          break;
-        }
-        let breakAt = remaining.lastIndexOf(' ', maxChars);
-        if (breakAt < 40) breakAt = maxChars;
-        lines.push(remaining.slice(0, breakAt));
-        remaining = remaining.slice(breakAt).trim();
-      }
-      lines.forEach((ln, i) => {
-        page.drawText(ln, {
-          x: margin + 8, y: y - 32 - i * 10,
-          size: 7.5, font, color: slate
+      // Quebra o texto pela largura real da fonte (preserva parágrafos)
+      function wrapText(text, f, size, maxW) {
+        const out = [];
+        String(text).split(/\r?\n/).forEach((para) => {
+          const words = para.split(/\s+/).filter(Boolean);
+          if (!words.length) { out.push(''); return; }
+          let line = '';
+          words.forEach((w) => {
+            const test = line ? line + ' ' + w : w;
+            if (f.widthOfTextAtSize(test, size) <= maxW) {
+              line = test;
+            } else {
+              if (line) out.push(line);
+              // Palavra maior que a linha: quebra por caracteres
+              let rest = w;
+              while (f.widthOfTextAtSize(rest, size) > maxW) {
+                let n = rest.length - 1;
+                while (n > 1 && f.widthOfTextAtSize(rest.slice(0, n), size) > maxW) n--;
+                out.push(rest.slice(0, n));
+                rest = rest.slice(n);
+              }
+              line = rest;
+            }
+          });
+          out.push(line);
         });
-      });
+        return out;
+      }
 
-      y -= 110;
+      const dispSize = 7.5;
+      const dispLineH = 10;
+      const dispPadTop = 14;     // espaço entre a barra de título e a 1ª linha
+      const dispPadBottom = 10;
+      const dispBarH = 18;
+      let dispLines = wrapText(state.dispatchText || '', font, dispSize, contentWidth - 16);
+      while (dispLines.length && dispLines[dispLines.length - 1] === '') dispLines.pop();
+      let dispFirst = true;
+
+      do {
+        const barH = dispFirst ? dispBarH : 0;
+        const fixedH = barH + dispPadTop + dispPadBottom;
+        // Garante espaço para ao menos o título + algumas linhas
+        ensureSpace(fixedH + dispLineH * Math.min(3, Math.max(1, dispLines.length)));
+        const fitLines = Math.max(1, Math.floor((y - 50 - fixedH) / dispLineH));
+        const chunk = dispLines.splice(0, fitLines);
+        const boxH = fixedH + chunk.length * dispLineH;
+
+        page.drawRectangle({
+          x: margin, y: y - boxH,
+          width: contentWidth, height: boxH,
+          color: softBg, borderColor: rgb(0.8, 0.82, 0.85), borderWidth: 0.6
+        });
+        if (dispFirst) {
+          page.drawRectangle({
+            x: margin, y: y - dispBarH,
+            width: contentWidth, height: dispBarH,
+            color: rgb(0.15, 0.18, 0.22)
+          });
+          page.drawText((state.dispatchTitle || 'SUGESTÃO DE DESPACHO').toUpperCase(), {
+            x: margin + 8, y: y - 12,
+            size: 8, font: fontBold, color: white
+          });
+        }
+        chunk.forEach((ln, i) => {
+          if (!ln) return;
+          page.drawText(ln, {
+            x: margin + 8, y: y - barH - dispPadTop - i * dispLineH,
+            size: dispSize, font, color: slate
+          });
+        });
+        y -= boxH + 10;
+        dispFirst = false;
+        if (dispLines.length) ensureSpace(Infinity); // força nova página para continuar
+      } while (dispLines.length);
 
       // Rodapé
       page.drawText(state.footer || 'INSTITUTO FEDERAL DE EDUCAÇÃO, CIÊNCIA E TECNOLOGIA DO MARANHÃO', {
