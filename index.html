@@ -393,10 +393,23 @@
           </div>
         </div>
 
-        <div id="urlFieldGroup">
-          <label for="inputItemUrl" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">URL do Link (Google Drive, SUAP, etc.)</label>
-          <input id="inputItemUrl" type="url" placeholder="https://drive.google.com/..."
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none" />
+        <div id="urlFieldGroup" class="space-y-3">
+          <div>
+            <label for="inputItemUrl" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">URL do Link (Google Drive, SUAP, etc.)</label>
+            <input id="inputItemUrl" type="url" placeholder="https://drive.google.com/..."
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none" />
+          </div>
+          <div>
+            <label for="inputItemButtonColor" class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Cor do Botão</label>
+            <select id="inputItemButtonColor"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm bg-white focus:border-ifma-green focus:ring-2 focus:ring-emerald-500/20 outline-none">
+              <option value="green">Verde (padrão)</option>
+              <option value="red">Vermelho (com ícone de atenção)</option>
+              <option value="blue">Azul</option>
+              <option value="amber">Âmbar</option>
+              <option value="gray">Cinza</option>
+            </select>
+          </div>
         </div>
 
         <div id="badgeSubGroup" class="hidden">
@@ -538,6 +551,7 @@
               actionLabel: 'Abrir no Drive',
               url: 'https://drive.google.com',
               badgeSub: '',
+              buttonColor: 'green',
               done: false
             }
           ]
@@ -554,6 +568,7 @@
               actionLabel: 'Abrir no Drive',
               url: 'https://drive.google.com',
               badgeSub: '',
+              buttonColor: 'green',
               done: false
             }
           ]
@@ -570,6 +585,7 @@
               actionLabel: 'Abrir no Drive',
               url: 'https://drive.google.com',
               badgeSub: '',
+              buttonColor: 'green',
               done: false
             }
           ]
@@ -809,6 +825,51 @@
     }
 
     /**
+     * Paleta de cores disponível para os botões de link (tela e PDF)
+     */
+    const BUTTON_COLORS = {
+      green: {
+        label: 'Verde',
+        warning: false,
+        htmlIdle: 'bg-ifma-light text-ifma-greenDark border-ifma-green/30 hover:bg-ifma-green hover:text-white',
+        pdf: { base: () => PDFLib.rgb(50/255, 160/255, 65/255) }
+      },
+      red: {
+        label: 'Vermelho',
+        warning: true,
+        htmlIdle: 'bg-red-50 text-red-700 border-red-300 hover:bg-red-600 hover:text-white',
+        pdf: { base: () => PDFLib.rgb(200/255, 25/255, 30/255) }
+      },
+      blue: {
+        label: 'Azul',
+        warning: false,
+        htmlIdle: 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-600 hover:text-white',
+        pdf: { base: () => PDFLib.rgb(0.15, 0.39, 0.80) }
+      },
+      amber: {
+        label: 'Âmbar',
+        warning: false,
+        htmlIdle: 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-600 hover:text-white',
+        pdf: { base: () => PDFLib.rgb(0.78, 0.52, 0.05) }
+      },
+      gray: {
+        label: 'Cinza',
+        warning: false,
+        htmlIdle: 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-600 hover:text-white',
+        pdf: { base: () => PDFLib.rgb(0.35, 0.39, 0.45) }
+      }
+    };
+
+    function getButtonColor(key) {
+      return BUTTON_COLORS[key] || BUTTON_COLORS.green;
+    }
+
+    /**
+     * Ícone de atenção (triângulo com exclamação), estilo Heroicons
+     */
+    const WARNING_ICON_SVG_PATH = 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z';
+
+    /**
      * Renderiza todas as etapas e itens sequenciais
      */
     function renderStages() {
@@ -897,16 +958,23 @@
           let actionHtml = '';
           if (item.actionType === 'link' && item.actionLabel) {
             const safeUrl = item.url && item.url.trim() ? item.url.trim() : '#';
+            const colorDef = getButtonColor(item.buttonColor);
             actionHtml = `
               <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition shrink-0 ${
                   item.done
                     ? 'bg-slate-100 text-slate-400 border-slate-200 line-through decoration-red-500'
-                    : 'bg-ifma-light text-ifma-greenDark border-ifma-green/30 hover:bg-ifma-green hover:text-white'
+                    : colorDef.htmlIdle
                 }">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                </svg>
+                ${
+                  colorDef.warning && !item.done
+                    ? `<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" d="${WARNING_ICON_SVG_PATH}" />
+                       </svg>`
+                    : `<svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                         <path stroke-linecap="round" stroke-linejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                       </svg>`
+                }
                 <span>${escapeHtml(item.actionLabel)}</span>
               </a>
             `;
@@ -1084,7 +1152,7 @@
       editingContext = { stageIndex, itemIndex };
       const isNew = itemIndex === null;
       const item = isNew
-        ? { title: '', description: '', actionType: 'link', actionLabel: 'Abrir no Drive', url: '', badgeSub: '' }
+        ? { title: '', description: '', actionType: 'link', actionLabel: 'Abrir no Drive', url: '', badgeSub: '', buttonColor: 'green' }
         : state.stages[stageIndex].items[itemIndex];
 
       document.getElementById('modalTitle').textContent = isNew ? 'Adicionar Novo Item' : 'Editar Item';
@@ -1094,6 +1162,7 @@
       document.getElementById('inputItemActionLabel').value = item.actionLabel || '';
       document.getElementById('inputItemUrl').value = item.url || '';
       document.getElementById('inputItemBadgeSub').value = item.badgeSub || '';
+      document.getElementById('inputItemButtonColor').value = item.buttonColor || 'green';
 
       toggleModalActionFields();
 
@@ -1151,6 +1220,7 @@
         actionLabel: document.getElementById('inputItemActionLabel').value.trim(),
         url: document.getElementById('inputItemUrl').value.trim(),
         badgeSub: document.getElementById('inputItemBadgeSub').value.trim(),
+        buttonColor: document.getElementById('inputItemButtonColor').value,
         done: false
       };
 
@@ -1502,16 +1572,38 @@
 
           // Link clicável
           if (item.actionType === 'link' && (item.actionLabel || item.url)) {
+            const colorDef = getButtonColor(item.buttonColor);
+            const btnColor = colorDef.pdf.base();
             const lbl = item.actionLabel || 'Abrir link';
             const lw = font.widthOfTextAtSize(lbl, 8) + 4;
-            const linkX = pageWidth - margin - lw;
+            const iconSize = 9;
+            const iconW = colorDef.warning ? iconSize + 4 : 0;
+            const linkX = pageWidth - margin - lw - iconW;
+            const textX = linkX + iconW;
+
+            if (colorDef.warning) {
+              // Triângulo de atenção com "!" no centro
+              const triBase = rowY - 2;
+              try {
+                page.drawSvgPath(`M${iconSize / 2} 0 L${iconSize} ${iconSize} L0 ${iconSize} Z`, {
+                  x: linkX,
+                  y: triBase + iconSize,
+                  color: btnColor
+                });
+              } catch (eTri) {}
+              page.drawText('!', {
+                x: linkX + iconSize / 2 - 1, y: triBase + 1.5,
+                size: 6, font: fontBold, color: white
+              });
+            }
+
             page.drawText(lbl, {
-              x: linkX, y: rowY, size: 8, font, color: green
+              x: textX, y: rowY, size: 8, font, color: btnColor
             });
             page.drawLine({
-              start: { x: linkX, y: rowY - 1 },
-              end: { x: linkX + lw - 4, y: rowY - 1 },
-              thickness: 0.6, color: green
+              start: { x: textX, y: rowY - 1 },
+              end: { x: textX + lw - 4, y: rowY - 1 },
+              thickness: 0.6, color: btnColor
             });
             const url = (item.url || '').trim();
             if (url && /^https?:\/\//i.test(url)) {
@@ -1519,7 +1611,7 @@
                 const linkAnnot = pdfDoc.context.obj({
                   Type: 'Annot',
                   Subtype: 'Link',
-                  Rect: [linkX - 2, rowY - 3, linkX + lw, rowY + 10],
+                  Rect: [linkX - 2, rowY - 3, textX + lw, rowY + 10],
                   Border: [0, 0, 0],
                   A: {
                     Type: 'Action',
